@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Scoreboard Controller</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<style>
+  body { 
+    margin: 0; 
+    padding: 0; 
+    background-color: #1a1a1a; 
+    font-family: sans-serif;
+    color: white;
+    overflow-x: hidden; 
+    width: 100vw;
+  }
+  
+  /* --- THE BROADCAST AREA --- */
+  #crop-container {
+    background-color: #00ff00; 
+    width: 100%;
+    overflow: hidden; 
+    border-bottom: 4px solid #ff0000; 
+    position: relative;
+    height: 180px; 
+    transition: height 0.1s;
+    z-index: 1; 
+  }
+
+  #iframe-wrapper {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    position: relative;
+  }
+
+  iframe {
+    /* FIXED: Hard-coded width stops the text from moving when you resize browser */
+    width: 1280px;       
+    height: 2000px;     
+    border: none;
+    position: absolute;
+    top: -220px;
+    left: 0px;
+    transform-origin: 0 0; 
+    transform: scale(1);
+    transition: top 0.1s, left 0.1s, transform 0.1s;
+    max-width: none; 
+  }
+
+  /* --- THE CONTROL PANEL --- */
+  #controls {
+    padding: 10px;
+    max-width: 500px;
+    margin: 0 auto;
+    padding-bottom: 80px; 
+    transition: opacity 0.3s;
+    position: relative;
+    z-index: 10; 
+  }
+
+  /* When we hide, we hide EVERYTHING */
+  .hidden-panel { display: none !important; }
+
+  .panel-section {
+    background: #333;
+    padding: 10px; 
+    border-radius: 8px;
+    margin-bottom: 10px; 
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  }
+
+  /* Inputs */
+  .url-builder, .input-row, .action-row {
+    display: flex; width: 100%; gap: 8px;
+  }
+  .url-builder { flex-direction: column; }
+  .input-row { align-items: center; }
+
+  label { font-size: 11px; color: #aaa; width: 55px; font-weight: bold; }
+
+  input[type="text"] {
+    flex-grow: 1;
+    padding: 10px;
+    border-radius: 4px;
+    border: none;
+    background: #222;
+    color: white;
+    font-family: monospace;
+    font-size: 15px; 
+  }
+  #matchIdInput { background: #111; border: 1px solid #444; color: #00ff00; }
+
+  #baseUrlInput {
+      background: #444;
+      color: #fff;
+      font-size: 13px;
+      margin-bottom: 5px;
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid #555;
+  }
+
+  /* Buttons */
+  button {
+    background: #555;
+    color: white;
+    border: 1px solid #666;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    padding: 10px 14px;
+    font-size: 14px;
+    touch-action: manipulation;
+  }
+  button.primary { background: #007bff; border-color: #0056b3; flex-grow: 2; }
+  button:active { background: #777; transform: translateY(1px); }
+  
+  button.danger {
+    background: #442222;
+    border-color: #663333;
+    color: #ff9999;
+    width: 100%;
+    margin-top: 10px;
+    padding: 12px;
+  }
+
+  button.copy-btn {
+    background: #6f42c1; 
+    border-color: #59359a;
+    color: white;
+    width: 100%;
+    margin-top: 8px;
+    padding: 12px;
+    font-size: 15px;
+    letter-spacing: 1px;
+  }
+
+  /* Grid & D-Pad */
+  .control-grid { display: flex; justify-content: space-around; width: 100%; align-items: center; }
+  .d-pad { display: grid; grid-template-columns: 50px 50px 50px; grid-template-rows: 45px 45px; gap: 5px; }
+  .d-btn { font-size: 24px; padding: 0; display: flex; align-items: center; justify-content: center;}
+  .up { grid-column: 2; grid-row: 1; }
+  .left { grid-column: 1; grid-row: 2; }
+  .down { grid-column: 2; grid-row: 2; }
+  .right { grid-column: 3; grid-row: 2; }
+  
+  .v-stack { display: flex; flex-direction: column; gap: 8px; align-items: center; }
+  .v-stack label { font-size: 10px; color: #ccc; font-weight: bold; }
+  .v-stack button { width: 45px; height: 40px; font-size: 18px; }
+
+  .readout {
+    font-family: monospace;
+    color: #00ff00;
+    font-size: 12px;
+    margin-top: 8px;
+    width: 100%;
+    text-align: center;
+    background: #222;
+    padding: 6px;
+    border-radius: 4px;
+  }
+
+  /* Permalink Section */
+  textarea.permalink-box {
+    width: 100%;
+    box-sizing: border-box; 
+    margin-top: 8px;
+    padding: 10px;
+    background: #000;
+    border: 1px solid #555;
+    color: #00ff00;
+    font-size: 14px; 
+    font-family: monospace;
+    word-break: break-all;
+    resize: none; 
+    height: 80px; 
+  }
+  
+  .clean-toggle-row {
+      display: flex;
+      align-items: center;
+      margin-top: 0px;
+      gap: 10px;
+      width: 100%;
+      justify-content: center;
+      padding: 5px;
+  }
+  .clean-toggle-row input { width: 18px; height: 18px; flex-grow: 0; }
+  .clean-toggle-row label { width: auto; color: #ddd; cursor: pointer; font-size: 13px;}
+
+  .section-label {
+      width: 100%; text-align: left; font-size: 11px; color: #aaa; margin-bottom: 4px; font-weight: bold;
+  }
+
+</style>
+</head>
+<body>
+
+  <div id="crop-container">
+    <div id="iframe-wrapper">
+      <iframe id="scoreFrame" src="" scrolling="no"></iframe>
+    </div>
+  </div>
+
+  <div id="controls">
+    
+    <div class="panel-section">
+      <div class="url-builder">
+        <div class="input-row">
+          <label>LEAGUE</label>
+          <input type="text" id="leagueInput" value="OMANCricket">
+        </div>
+        <div class="input-row">
+          <label>MATCH ID</label>
+          <input type="text" id="matchIdInput" placeholder="e.g. 6012">
+        </div>
+        <div class="action-row">
+          <button class="primary" onclick="buildAndLoad()">LOAD SCOREBOARD</button>
+          <button onclick="reloadFrame()" title="Refresh Frame">&#x21bb;</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="control-grid">
+        <div class="v-stack">
+          <label>HEIGHT</label>
+          <button onclick="resizeFrame(5)">&#xFF0B;</button> 
+          <button onclick="resizeFrame(-5)">&#x2212;</button> 
+        </div>
+
+        <div class="d-pad">
+          <button class="d-btn up" onclick="move(0, 5)">&#8593;</button>
+          <button class="d-btn left" onclick="move(5, 0)">&#8592;</button>
+          <button class="d-btn down" onclick="move(0, -5)">&#8595;</button>
+          <button class="d-btn right" onclick="move(-5, 0)">&#8594;</button>
+        </div>
+
+        <div class="v-stack">
+          <label>ZOOM</label>
+          <button onclick="zoom(0.05)">&#xFF0B;</button>
+          <button onclick="zoom(-0.05)">&#x2212;</button>
+        </div>
+      </div>
+
+      <div class="readout">
+        H: <span id="hVal">180</span>px | Pos: <span id="xVal">0</span>, <span id="yVal">-220</span> | Z: <span id="zVal">1.0</span>x
+      </div>
+    </div>
+
+    <div class="panel-section">
+      
+      <div class="section-label">HOSTED FILE URL (Required for OBS Link)</div>
+      <input type="text" id="baseUrlInput" placeholder="Paste your hosted URL (e.g. https://site.com/score.html)" oninput="updatePermalink()">
+
+      <div class="clean-toggle-row">
+        <input type="checkbox" id="cleanCheck" onchange="updatePermalink()">
+        <label for="cleanCheck">Add <b>&clean=1</b> (Hide Controls)</label>
+      </div>
+      
+      <textarea id="permalink" class="permalink-box" readonly></textarea>
+      <button class="copy-btn" onclick="copyPermalink()">COPY LINK TO CLIPBOARD</button>
+      <button class="danger" onclick="hideControlsForever()">HIDE CONTROLS (Clean Feed)</button>
+    </div>
+    
+  </div>
+
+  <script>
+    // --- STATE VARIABLES ---
+    let frameHeight = 180;
+    let posX = 0;
+    let posY = -220;
+    let scale = 1.0;
+
+    // --- INITIALIZATION ---
+    window.onload = function() {
+      loadFromStorage();
+      const params = new URLSearchParams(window.location.search);
+      
+      if(params.has('h')) frameHeight = parseInt(params.get('h'));
+      if(params.has('x')) posX = parseInt(params.get('x'));
+      if(params.has('y')) posY = parseInt(params.get('y'));
+      if(params.has('z')) scale = parseFloat(params.get('z'));
+      if(params.has('league')) document.getElementById('leagueInput').value = params.get('league');
+      if(params.has('id')) document.getElementById('matchIdInput').value = params.get('id');
+
+      applyVisuals();
+
+      // AUTO LOAD
+      const currentId = document.getElementById('matchIdInput').value;
+      if(currentId && currentId.trim() !== "") {
+        buildAndLoad();
+      }
+
+      // CLEAN MODE (Strict)
+      if(params.has('clean') && params.get('clean') === '1') {
+        document.getElementById('cleanCheck').checked = true;
+        hideControlsForever();
+      }
+      
+      updatePermalink(); 
+    };
+
+    // --- STORAGE ---
+    function loadFromStorage() {
+      if(localStorage.getItem('sb_h')) frameHeight = parseInt(localStorage.getItem('sb_h'));
+      if(localStorage.getItem('sb_x')) posX = parseInt(localStorage.getItem('sb_x'));
+      if(localStorage.getItem('sb_y')) posY = parseInt(localStorage.getItem('sb_y'));
+      if(localStorage.getItem('sb_z')) scale = parseFloat(localStorage.getItem('sb_z'));
+      if(localStorage.getItem('sb_league')) document.getElementById('leagueInput').value = localStorage.getItem('sb_league');
+      if(localStorage.getItem('sb_id')) document.getElementById('matchIdInput').value = localStorage.getItem('sb_id');
+      if(localStorage.getItem('sb_base')) document.getElementById('baseUrlInput').value = localStorage.getItem('sb_base');
+    }
+
+    function saveToStorage() {
+      localStorage.setItem('sb_h', frameHeight);
+      localStorage.setItem('sb_x', posX);
+      localStorage.setItem('sb_y', posY);
+      localStorage.setItem('sb_z', scale);
+      localStorage.setItem('sb_league', document.getElementById('leagueInput').value);
+      localStorage.setItem('sb_id', document.getElementById('matchIdInput').value);
+      localStorage.setItem('sb_base', document.getElementById('baseUrlInput').value);
+    }
+
+    // --- FUNCTIONS ---
+    function buildAndLoad() {
+      let league = document.getElementById('leagueInput').value.trim();
+      if (!league) { league = "USACricketJunior"; document.getElementById('leagueInput').value = league; }
+      const matchId = document.getElementById('matchIdInput').value.trim();
+      if (!matchId) return;
+
+      const fullUrl = `https://cricclubs.com/${league}/viewScorecard.do?matchId=${matchId}`;
+      const iframe = document.getElementById('scoreFrame');
+      
+      // Load only if different (prevents loop)
+      if(iframe.src !== fullUrl) {
+          iframe.src = fullUrl;
+      }
+      saveToStorage();
+      updatePermalink();
+    }
+    
+    function reloadFrame() {
+       const iframe = document.getElementById('scoreFrame');
+       if(iframe.src) iframe.src = iframe.src;
+    }
+
+    // STRICT HIDE - NO WAY BACK WITHOUT REFRESH
+    function hideControlsForever() {
+        const panel = document.getElementById('controls');
+        panel.classList.add('hidden-panel');
+        // No gear button is shown. 
+    }
+
+    function resizeFrame(amount) {
+      frameHeight += amount;
+      if (frameHeight < 50) frameHeight = 50; 
+      applyVisuals();
+    }
+
+    function move(x, y) {
+      posX += x;
+      posY += y;
+      applyVisuals();
+    }
+
+    function zoom(amount) {
+      scale += amount;
+      if (scale < 0.1) scale = 0.1;
+      scale = Math.round(scale * 100) / 100; 
+      applyVisuals();
+    }
+
+    function applyVisuals() {
+      const frame = document.getElementById('scoreFrame');
+      document.getElementById('crop-container').style.height = frameHeight + "px";
+      frame.style.top = posY + "px";
+      frame.style.left = posX + "px";
+      frame.style.transform = `scale(${scale})`;
+      
+      document.getElementById('hVal').innerText = frameHeight;
+      document.getElementById('xVal').innerText = posX;
+      document.getElementById('yVal').innerText = posY;
+      document.getElementById('zVal').innerText = scale.toFixed(2);
+      
+      saveToStorage();
+      updatePermalink();
+    }
+
+    function updatePermalink() {
+      const matchId = document.getElementById('matchIdInput').value;
+      const league = document.getElementById('leagueInput').value;
+      const cleanEnabled = document.getElementById('cleanCheck').checked;
+      let baseUrl = document.getElementById('baseUrlInput').value.trim();
+      
+      if(!baseUrl) baseUrl = "YOUR-HOSTED-URL-HERE";
+      if(baseUrl.indexOf('?') > -1) baseUrl = baseUrl.split('?')[0];
+      
+      const params = new URLSearchParams();
+      if(matchId) params.set('id', matchId);
+      if(league && league !== "USACricketJunior") params.set('league', league);
+      
+      params.set('h', frameHeight);
+      params.set('x', posX);
+      params.set('y', posY);
+      params.set('z', scale.toFixed(2));
+      
+      if(cleanEnabled) params.set('clean', '1');
+
+      const fullLink = baseUrl + "?" + params.toString();
+      document.getElementById('permalink').value = fullLink;
+    }
+
+    function copyPermalink() {
+      const copyText = document.getElementById('permalink');
+      copyText.select();
+      copyText.setSelectionRange(0, 99999);
+      navigator.clipboard.writeText(copyText.value).then(() => {
+        alert("Link copied!");
+      }, () => {
+        document.execCommand("copy");
+        alert("Link copied (backup)!");
+      });
+    }
+
+  </script>
+
+</body>
+</html>
