@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cricket Score Extractor - Electric</title>
+    <style>
+        /* Basic styling for the page */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f2f5;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 150px auto 0; 
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: #333;
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        /* Step 1: Inputs */
+        .step-section {
+            padding: 30px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap; 
+            align-items: flex-end; 
+        }
+
+        .input-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 140px;
+        }
+
+        .input-wrapper label {
+            font-size: 11px;
+            color: #666;
+            margin-bottom: 5px;
+            font-weight: 700;
+            margin-left: 2px;
+            text-transform: uppercase;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            font-size: 15px;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #0074D9;
+        }
+
+        .btn {
+            padding: 0 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            height: 48px; 
+        }
+
+        .btn-primary {
+            background: #0074D9;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #0056a3;
+        }
+
+        /* Control Wrappers */
+        .control-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 80px;
+        }
+        
+        .control-buttons {
+            display: flex;
+            gap: 5px;
+            height: 48px;
+            align-items: center;
+        }
+
+        .btn-adjust {
+            width: 40px;
+            height: 100%;
+            border: 2px solid #dee2e6;
+            background: white;
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+
+        .btn-adjust:hover {
+            background: #f0f0f0;
+            border-color: #ccc;
+        }
+
+        .value-display {
+            font-family: monospace;
+            font-size: 11px;
+            color: #666;
+            margin-top: 5px;
+            text-align: center;
+            width: 100%;
+        }
+
+        /* Share Section */
+        .share-section {
+            padding: 30px;
+            background: #f8f9fa;
+        }
+        
+        .share-section h3 {
+            font-size: 16px;
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .share-row {
+            display: flex;
+            gap: 10px;
+        }
+
+        .share-row input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-family: monospace;
+            color: #555;
+            background: #fff;
+        }
+
+        .btn-copy {
+            background: #28a745;
+            color: white;
+            margin-top: 0;
+            height: auto;
+            padding: 12px 20px;
+        }
+        
+        .btn-copy:hover {
+            background: #218838;
+        }
+
+        /* Status Messages */
+        .status-message {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 8px;
+            font-weight: 500;
+        }
+
+        .status-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .status-error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+
+        /* =========================================
+           FIXED SCORE DISPLAY (Wider & Thinner)
+           ========================================= */
+        #fixedScoreContainer {
+            position: fixed;
+            top: 0;       
+            left: 0;      
+            z-index: 9999;
+            min-width: 700px; /* Wider to accommodate side-by-side */
+            display: none; 
+            transform-origin: top left; 
+            display: flex;
+            flex-direction: row; /* SIDE-BY-SIDE LAYOUT */
+            align-items: stretch; /* Make both bars equal height */
+        }
+
+        .score-bar {
+            display: flex;
+            border-radius: 0; 
+            overflow: hidden; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            position: relative;
+            min-height: 55px; /* EXTREMELY THIN */
+            color: white;
+            background: #333; 
+            flex: 1; /* Take up main space */
+        }
+
+        .team-section {
+            flex: 1;
+            padding: 2px 20px; /* Minimal padding for thin look */
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            position: relative;
+            white-space: nowrap;
+        }
+
+        /* LEFT SIDE (Blue) */
+        .team-section.left {
+            justify-content: flex-end;
+            text-align: right;
+            background: linear-gradient(45deg, #001f3f, #0074D9);
+            clip-path: polygon(0 0, 100% 0, 95% 100%, 0% 100%);
+            padding-right: 40px; 
+            z-index: 2;
+        }
+
+        /* RIGHT SIDE (Neon Orange) */
+        .team-section.right {
+            justify-content: flex-start;
+            text-align: left;
+            background: linear-gradient(45deg, #FF4136, #FFDC00);
+            color: #000;
+            clip-path: polygon(5% 0, 100% 0, 100% 100%, 0% 100%);
+            padding-left: 40px; 
+            margin-left: -20px; 
+            z-index: 1;
+        }
+
+        .t-name { 
+            font-weight: 700; 
+            text-transform: uppercase; 
+            letter-spacing: 0.5px; 
+            /* Font size set via JS now */
+        }
+        
+        .t-score { 
+            font-weight: 900; 
+            line-height: 1; 
+            /* Font size set via JS now */
+        }
+        
+        .t-overs { 
+            font-family: monospace; 
+            opacity: 0.85; 
+            margin-top: 0px; 
+            /* Font size set via JS now */
+        }
+        
+        .score-group { display: flex; flex-direction: column; justify-content: center; }
+        .left .score-group { align-items: flex-end; }
+        .right .score-group { align-items: flex-start; }
+
+        /* DETAILS BAR (Batters/Bowlers - Side by side) */
+        .details-bar {
+            display: flex;
+            flex-direction: column; /* Stacked text */
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 4px 20px; 
+            font-weight: 600;
+            border-left: 2px solid rgba(255,255,255,0.1); /* Separator */
+            min-width: 180px;
+            white-space: nowrap;
+            /* Initially hidden if no data */
+            display: none; 
+            /* Font size set via JS now */
+        }
+        
+        .details-bar > div {
+            line-height: 1.2;
+            display: flex;
+            gap: 5px;
+        }
+
+        .on-strike {
+            color: #FFDC00; 
+        }
+        
+        .bowler-row {
+            margin-top: 3px;
+            padding-top: 3px;
+            border-top: 1px dashed rgba(255,255,255,0.3);
+        }
+
+        .bowler-info {
+            color: #ccc;
+        }
+        
+        .bowler-name {
+            color: #fff;
+            margin-right: 5px;
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #0074D9;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+            margin-left: 10px;
+        }
+        .hidden { display: none; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+    </style>
+</head>
+<body>
+
+    <!-- FIXED SCORE OVERLAY -->
+    <div id="fixedScoreContainer" style="display: none;">
+        <div class="score-bar">
+            <!-- Left Side (Winner/Team 1) -->
+            <div class="team-section left">
+                <div id="t1Name" class="t-name">Team 1</div>
+                <div class="score-group">
+                    <div id="t1Score" class="t-score">0/0</div>
+                    <div id="t1Overs" class="t-overs">0.0</div>
+                </div>
+            </div>
+            
+            <!-- Right Side (Loser/Team 2) -->
+            <div class="team-section right">
+                <div class="score-group">
+                    <div id="t2Score" class="t-score">0/0</div>
+                    <div id="t2Overs" class="t-overs">0.0</div>
+                </div>
+                <div id="t2Name" class="t-name">Team 2</div>
+            </div>
+        </div>
+        
+        <!-- Live Details (Batters/Bowlers Stacked) -->
+        <div id="detailsBar" class="details-bar">
+            <div id="batter1"></div>
+            <div id="batter2"></div>
+            <div id="bowler1" class="bowler-row"></div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <h1>Scoreboard Controller</h1>
+            <p>Enter match details to generate the electric overlay.</p>
+        </div>
+
+        <!-- Inputs -->
+        <div class="step-section">
+            <div class="input-group">
+                <div class="input-wrapper">
+                    <label>LEAGUE NAME</label>
+                    <input 
+                        type="text" 
+                        id="leagueInput" 
+                        placeholder="e.g., OMANCricket"
+                        value="OMANCricket"
+                        oninput="updatePermalink()">
+                </div>
+                <div class="input-wrapper">
+                    <label>MATCH ID</label>
+                    <input 
+                        type="text" 
+                        id="matchIdInput" 
+                        placeholder="e.g., 6012"
+                        value=""
+                        oninput="updatePermalink()">
+                </div>
+                
+                <!-- Score Size Controls -->
+                <div class="control-wrapper">
+                    <label>SCORE SIZE</label>
+                    <div class="control-buttons">
+                        <button class="btn-adjust" onclick="adjustScoreSize(-2)">-</button>
+                        <button class="btn-adjust" onclick="adjustScoreSize(2)">+</button>
+                    </div>
+                    <div id="fsDisplay" class="value-display">32px</div>
+                </div>
+
+                <!-- Text Size Controls (NEW) -->
+                <div class="control-wrapper">
+                    <label>TEXT SIZE</label>
+                    <div class="control-buttons">
+                        <button class="btn-adjust" onclick="adjustTextSize(-1)">-</button>
+                        <button class="btn-adjust" onclick="adjustTextSize(1)">+</button>
+                    </div>
+                    <div id="tsDisplay" class="value-display">15px</div>
+                </div>
+
+                <!-- Zoom Controls -->
+                <div class="control-wrapper">
+                    <label>ZOOM</label>
+                    <div class="control-buttons">
+                        <button class="btn-adjust" onclick="adjustScale(-0.1)">-</button>
+                        <button class="btn-adjust" onclick="adjustScale(0.1)">+</button>
+                    </div>
+                    <div id="scaleDisplay" class="value-display">1.0x</div>
+                </div>
+
+                <button class="btn btn-primary" onclick="extractScores()">
+                    Load
+                    <div id="loadingSpinner" class="spinner hidden"></div>
+                </button>
+            </div>
+            <div id="statusMessage"></div>
+        </div>
+
+        <!-- Share Section -->
+        <div class="share-section">
+            <h3>Share / Save Settings</h3>
+            <div class="share-row">
+                <input type="text" id="permalinkInput" readonly value="">
+                <button class="btn btn-copy" onclick="copyLink()">Copy Link</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentLeague = null;
+        let currentMatchId = null;
+        let refreshInterval = null;
+        
+        let scoreFontSize = 32; // Default score size
+        let textFontSize = 15;  // Default text size
+        let containerScale = 1.0; // Default zoom scale
+
+        // INITIALIZATION
+        window.onload = function() {
+            // Check URL parameters
+            const params = new URLSearchParams(window.location.search);
+            const leagueParam = params.get('league');
+            const idParam = params.get('id');
+            const fsParam = params.get('fs');
+            const tsParam = params.get('ts');
+            const scaleParam = params.get('scale');
+
+            if (leagueParam) document.getElementById('leagueInput').value = leagueParam;
+            if (idParam) document.getElementById('matchIdInput').value = idParam;
+            
+            if (fsParam) {
+                scoreFontSize = parseInt(fsParam);
+                if(isNaN(scoreFontSize)) scoreFontSize = 32;
+            }
+
+            if (tsParam) {
+                textFontSize = parseInt(tsParam);
+                if(isNaN(textFontSize)) textFontSize = 15;
+            }
+
+            if (scaleParam) {
+                containerScale = parseFloat(scaleParam);
+                if(isNaN(containerScale)) containerScale = 1.0;
+            }
+
+            // Update displays
+            updateDisplays();
+            
+            // Apply scale & font immediately
+            applyScale();
+            applyFontSizes();
+
+            // Update the share link initially
+            updatePermalink();
+
+            // Auto-load if we have an ID
+            if (idParam) {
+                extractScores();
+            }
+        };
+
+        // SCALE FUNCTIONS
+        function adjustScale(delta) {
+            containerScale += delta;
+            if (containerScale < 0.2) containerScale = 0.2; 
+            containerScale = Math.round(containerScale * 10) / 10;
+            updateDisplays();
+            updatePermalink();
+            applyScale();
+        }
+
+        function applyScale() {
+            document.getElementById('fixedScoreContainer').style.transform = `scale(${containerScale})`;
+        }
+
+        // FONT SIZE FUNCTIONS
+        function adjustScoreSize(delta) {
+            scoreFontSize += delta;
+            if (scoreFontSize < 10) scoreFontSize = 10; 
+            updateDisplays();
+            updatePermalink();
+            applyFontSizes();
+        }
+
+        function adjustTextSize(delta) {
+            textFontSize += delta;
+            if (textFontSize < 8) textFontSize = 8; 
+            updateDisplays();
+            updatePermalink();
+            applyFontSizes();
+        }
+
+        function applyFontSizes() {
+            // Update Score Size
+            document.querySelectorAll('.t-score').forEach(el => el.style.fontSize = scoreFontSize + 'px');
+            
+            // Update Text Size proportionally
+            document.querySelectorAll('.t-name').forEach(el => el.style.fontSize = textFontSize + 'px');
+            document.querySelectorAll('.t-overs').forEach(el => el.style.fontSize = Math.max(8, textFontSize - 4) + 'px');
+            document.querySelectorAll('.details-bar').forEach(el => el.style.fontSize = Math.max(9, textFontSize - 3) + 'px');
+        }
+
+        function updateDisplays() {
+            document.getElementById('fsDisplay').innerText = scoreFontSize + 'px';
+            document.getElementById('tsDisplay').innerText = textFontSize + 'px';
+            document.getElementById('scaleDisplay').innerText = containerScale + 'x';
+        }
+
+        // SHARED FUNCTIONS
+        function updatePermalink() {
+            const league = document.getElementById('leagueInput').value.trim();
+            const matchId = document.getElementById('matchIdInput').value.trim();
+            const baseUrl = window.location.href.split('?')[0];
+            
+            const url = new URL(baseUrl);
+            if(league) url.searchParams.set('league', league);
+            if(matchId) url.searchParams.set('id', matchId);
+            url.searchParams.set('fs', scoreFontSize);
+            url.searchParams.set('ts', textFontSize);
+            url.searchParams.set('scale', containerScale);
+            
+            document.getElementById('permalinkInput').value = url.toString();
+        }
+
+        function copyLink() {
+            const copyText = document.getElementById('permalinkInput');
+            copyText.select();
+            copyText.setSelectionRange(0, 99999); 
+            navigator.clipboard.writeText(copyText.value).then(() => {
+                const btn = document.querySelector('.btn-copy');
+                const origText = btn.innerText;
+                btn.innerText = "Copied!";
+                setTimeout(() => btn.innerText = origText, 2000);
+            });
+        }
+
+        // CORE LOGIC
+        async function extractScores() {
+            const league = document.getElementById('leagueInput').value.trim();
+            const matchId = document.getElementById('matchIdInput').value.trim();
+            
+            if (!league) { showStatus('Please enter a League Name', 'error'); return; }
+            if (!matchId) { showStatus('Please enter a Match ID', 'error'); return; }
+
+            currentLeague = league;
+            currentMatchId = matchId;
+            updatePermalink();
+
+            if (refreshInterval) clearInterval(refreshInterval);
+
+            // Initial Fetch
+            await fetchAllData();
+
+            // Set Interval
+            refreshInterval = setInterval(fetchAllData, 30000);
+
+            showStatus(`Tracking Match ID: ${matchId}`, 'success');
+        }
+
+        async function fetchAllData() {
+            document.getElementById('loadingSpinner').classList.remove('hidden');
+            
+            const scoreUrl = `https://cricclubs.com/${currentLeague}/viewScorecard.do?matchId=${currentMatchId}`;
+            const ballUrl = `https://cricclubs.com/${currentLeague}/ballbyball.do?matchId=${currentMatchId}`;
+
+            try {
+                // Fetch Main Score
+                const scoreRes = await fetch(scoreUrl);
+                if (scoreRes.ok) {
+                    const scoreText = await scoreRes.text();
+                    parseMainScore(scoreText);
+                }
+
+                // Fetch Details
+                const ballRes = await fetch(ballUrl);
+                if (ballRes.ok) {
+                    const ballText = await ballRes.text();
+                    parseDetails(ballText);
+                }
+
+                const time = new Date().toLocaleTimeString();
+                showStatus(`Last updated: ${time}`, 'success');
+
+            } catch (error) {
+                console.error('Fetch error:', error);
+            } finally {
+                document.getElementById('loadingSpinner').classList.add('hidden');
+            }
+        }
+
+        function parseMainScore(htmlText) {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(htmlText, 'text/html');
+
+            const winElements = doc.querySelectorAll('li.win');
+            const loseElements = doc.querySelectorAll('li.lose');
+            const teams = [];
+
+            winElements.forEach(el => { const d = extractTeamData(el); if(d) teams.push(d); });
+            loseElements.forEach(el => { const d = extractTeamData(el); if(d) teams.push(d); });
+
+            updateMainScoreboard(teams);
+        }
+
+        function extractTeamData(element) {
+            if (!element) return null;
+            const teamName = element.querySelector('span.teamName')?.textContent.trim() || 'Unknown';
+            const allSpans = element.querySelectorAll('span');
+            let score = 'N/A';
+            for (let i = 0; i < allSpans.length; i++) {
+                if (allSpans[i].classList.contains('teamName') && allSpans[i + 1]) {
+                    score = allSpans[i + 1].textContent.trim();
+                    break;
+                }
+            }
+            const overs = element.querySelector('p[style*="text-transform: lowercase"]')?.textContent.trim() || '';
+            return { teamName, score, overs };
+        }
+
+        function updateMainScoreboard(teams) {
+            const container = document.getElementById('fixedScoreContainer');
+            
+            if (!teams || teams.length === 0) {
+                container.style.display = 'none';
+                return;
+            }
+
+            const t1 = teams[0] || { teamName: 'Team 1', score: '-', overs: '' };
+            const t2 = teams[1] || { teamName: 'Team 2', score: '-', overs: '' };
+
+            document.getElementById('t1Name').textContent = t1.teamName;
+            document.getElementById('t1Score').textContent = t1.score;
+            document.getElementById('t1Overs').textContent = t1.overs;
+            
+            document.getElementById('t2Name').textContent = t2.teamName;
+            document.getElementById('t2Score').textContent = t2.score;
+            document.getElementById('t2Overs').textContent = t2.overs;
+
+            container.style.display = 'flex';
+        }
+
+        function parseDetails(htmlText) {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(htmlText, 'text/html');
+            const detailsBar = document.getElementById('detailsBar');
+
+            let batterTable = null;
+            const allThs = doc.querySelectorAll('th');
+            for (let th of allThs) {
+                if (th.textContent.trim().includes('Batter')) {
+                    batterTable = th.closest('table');
+                    break;
+                }
+            }
+
+            let b1Text = "", b2Text = "";
+
+            if (batterTable) {
+                const rows = batterTable.querySelectorAll('tr');
+                let dataRows = [];
+                for(let r of rows) {
+                   if(r.querySelector('td') || (r.querySelector('th') && !r.textContent.includes('Batter'))) {
+                       dataRows.push(r);
+                   }
+                }
+                
+                if (dataRows.length < 2 && rows.length >= 3) {
+                    dataRows = [rows[1], rows[2]];
+                }
+
+                if (dataRows.length > 0) {
+                    b1Text = extractBatterStats(dataRows[0], true); 
+                }
+                if (dataRows.length > 1) {
+                    b2Text = extractBatterStats(dataRows[1], false); 
+                }
+            }
+
+            let bowlerTable = null;
+            for (let th of allThs) {
+                if (th.textContent.trim().includes('Bowler')) {
+                    bowlerTable = th.closest('table');
+                    break;
+                }
+            }
+
+            let bowlText = "";
+            if (bowlerTable) {
+                const rows = bowlerTable.querySelectorAll('tr');
+                if (rows.length > 1) {
+                    bowlText = extractBowlerStats(rows[1]);
+                }
+            }
+
+            if (b1Text || b2Text || bowlText) {
+                detailsBar.style.display = 'flex';
+                document.getElementById('batter1').innerHTML = b1Text;
+                document.getElementById('batter2').innerHTML = b2Text;
+                document.getElementById('bowler1').innerHTML = bowlText;
+            } else {
+                detailsBar.style.display = 'none';
+            }
+        }
+
+        function extractBatterStats(row, isStrike) {
+            const cells = row.children; 
+            if (cells.length < 3) return "";
+
+            const name = cells[0].textContent.trim();
+            const runs = cells[1].textContent.trim();
+            const balls = cells[2].textContent.trim();
+
+            let display = `${name} ${runs} (${balls})`;
+            if (isStrike) {
+                return `<span class="on-strike">${display}*</span>`;
+            }
+            return `<span class="batter-info">${display}</span>`;
+        }
+
+        function extractBowlerStats(row) {
+            const cells = row.children;
+            if (cells.length < 5) return "";
+
+            const name = cells[0].textContent.trim();
+            const overs = cells[1].textContent.trim();
+            const maidens = cells[2].textContent.trim();
+            const runs = cells[3].textContent.trim();
+            const wickets = cells[4].textContent.trim();
+
+            return `<span class="bowler-name">${name}</span> <span class="bowler-info">${overs}-${maidens}-${runs}-${wickets}</span>`;
+        }
+
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('statusMessage');
+            statusDiv.innerHTML = `<div class="status-message status-${type}">${message}</div>`;
+        }
+
+        window.addEventListener('beforeunload', () => {
+            if (refreshInterval) clearInterval(refreshInterval);
+        });
+    </script>
+</body>
+</html>
