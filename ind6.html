@@ -323,6 +323,70 @@
             margin-right: 5px;
         }
 
+        /* LAST 12 BALLS */
+        .last-balls-bar {
+            display: flex;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 4px 15px; 
+            border-left: 2px solid rgba(255,255,255,0.2); 
+            align-items: flex-end; 
+            gap: 15px;
+            display: none; 
+            white-space: nowrap;
+        }
+
+        .over-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            justify-content: flex-end;
+            padding-bottom: 2px;
+        }
+
+        .over-header {
+            font-size: 0.85em; 
+            color: #aaa;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            min-height: 1.2em;
+            display: flex;
+            align-items: center;
+        }
+
+        .balls-row {
+            display: flex;
+            gap: 4px;
+        }
+
+        .ball-bubble {
+            width: 1.8em;
+            height: 1.8em;
+            font-size: 0.9em;
+            border-radius: 50%;
+            background: #444; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+        
+        .ball-bubble.w { background: #FF4136; }
+        .ball-bubble.b4 { background: #0074D9; }
+        .ball-bubble.b6 { background: #2ECC40; }
+        .ball-bubble.extra { background: #555; color: #ccc; border: 1px solid #888; } 
+
+        .over-separator {
+            width: 3px;
+            height: 2em;
+            background: rgba(255, 255, 255, 0.3);
+            transform: skewX(-15deg);
+            margin-bottom: 3px;
+            border-radius: 2px;
+        }
+
         /* Loading Spinner */
         .spinner {
             border: 4px solid #f3f3f3;
@@ -366,6 +430,8 @@
             <div id="batter2"></div>
             <div id="bowler1" class="bowler-row"></div>
         </div>
+        
+        <div id="lastBallsBar" class="last-balls-bar"></div>
     </div>
 
     <div class="container" id="configContainer">
@@ -529,6 +595,7 @@
             document.querySelectorAll('.t-name').forEach(el => el.style.fontSize = textFontSize + 'px');
             document.querySelectorAll('.t-overs').forEach(el => el.style.fontSize = Math.max(8, textFontSize - 4) + 'px');
             document.querySelectorAll('.details-bar').forEach(el => el.style.fontSize = Math.max(9, textFontSize - 3) + 'px');
+            document.querySelectorAll('.last-balls-bar').forEach(el => el.style.fontSize = Math.max(9, textFontSize - 3) + 'px');
         }
 
         function updateDisplays() {
@@ -735,6 +802,8 @@
             } else {
                 detailsBar.style.display = 'none';
             }
+
+            parseLastBalls(doc);
         }
 
         function extractBatterStats(row, isStrike) {
@@ -763,6 +832,127 @@
             const wickets = cells[4].textContent.trim();
 
             return `<span class="bowler-name">${name}</span> <span class="bowler-info">${overs}-${maidens}-${runs}-${wickets}</span>`;
+        }
+
+        function getBallShortText(text) {
+            text = text.toLowerCase();
+            if (text.includes('out') || text.includes('run out') || text.includes('stumped') || text.includes('hit wicket') || text.includes('caught')) return { label: 'W', cls: 'w' };
+            if (text.includes('six')) return { label: '6', cls: 'b6' };
+            if (text.includes('four')) return { label: '4', cls: 'b4' };
+            
+            let match = text.match(/(\\d+)\\s*(wide|wides|no ball|leg bye|bye)/);
+            if (match) {
+                let num = parseInt(match[1]) || 1;
+                let typeStr = match[2];
+                let suffix = '';
+                if (typeStr.includes('wide')) suffix = 'wd';
+                else if (typeStr.includes('no ball')) suffix = 'nb';
+                else if (typeStr.includes('leg bye')) suffix = 'lb';
+                else if (typeStr.includes('bye')) suffix = 'b';
+                
+                return { label: (num > 1 ? num + suffix : '1'+suffix), cls: 'extra' }; 
+            }
+            if (text.includes('wide')) return { label: 'wd', cls: 'extra' };
+            if (text.includes('no ball')) return { label: 'nb', cls: 'extra' };
+            if (text.includes('leg bye')) return { label: 'lb', cls: 'extra' };
+            
+            if (text.includes('0 run')) return { label: '0', cls: '' };
+            if (text.includes('1 run')) return { label: '1', cls: '' };
+            if (text.includes('2 run')) return { label: '2', cls: '' };
+            if (text.includes('3 run')) return { label: '3', cls: '' };
+            
+            let runMatch = text.match(/(\\d+)\\s*run/);
+            if (runMatch) return { label: runMatch[1], cls: '' };
+            
+            return { label: '0', cls: '' }; 
+        }
+
+        function parseLastBalls(doc) {
+            let ballCount = 0;
+            let oversData = [];
+            let currentOverGroup = { isCompleted: false, header: "", bowler: "", balls: [] };
+            
+            let allRows = doc.querySelectorAll('.bbb-row, .end-over');
+
+            for (let row of allRows) {
+                if (ballCount >= 12) break;
+
+                if (row.classList.contains('end-over')) {
+                    if (currentOverGroup.balls.length > 0) {
+                        oversData.push(currentOverGroup);
+                    }
+                    
+                    let head = row.querySelector('.end-head p')?.textContent.trim() || "";
+                    let tests = row.querySelectorAll('.end-test');
+                    let bowlerStr = "";
+                    if (tests.length > 1) {
+                        let p = tests[1].querySelector('p');
+                        if (p) {
+                            if (p.childNodes.length > 0 && p.childNodes[0].nodeType === Node.TEXT_NODE) {
+                                bowlerStr = p.childNodes[0].textContent.trim();
+                            } else {
+                                bowlerStr = p.textContent.trim();
+                            }
+                        }
+                    }
+                    
+                    currentOverGroup = { isCompleted: true, header: head, bowler: bowlerStr, balls: [] };
+                } else if (row.classList.contains('bbb-row')) {
+                    let ovNode = row.querySelector('.col2 .ov');
+                    let ovCode = ovNode ? ovNode.textContent.trim() : "";
+                    
+                    if (ovCode) { // valid ball
+                        let textNode = row.querySelector('.col3');
+                        let text = textNode ? textNode.textContent.trim() : "";
+                        let parsed = getBallShortText(text);
+                        currentOverGroup.balls.push({ 
+                            over: ovCode, 
+                            label: parsed.label, 
+                            cls: parsed.cls, 
+                            fullText: text.replace(/"/g, '&quot;') 
+                        });
+                        ballCount++;
+                    }
+                }
+            }
+            
+            if (currentOverGroup.balls.length > 0 && ballCount <= 12) {
+                if (oversData.indexOf(currentOverGroup) === -1) {
+                    oversData.push(currentOverGroup);
+                }
+            }
+
+            const lastBallsBar = document.getElementById('lastBallsBar');
+            if (oversData.length > 0) {
+                let html = '';
+                let groupIndex = 0;
+                for (let group of oversData) {
+                    if (group.balls.length === 0) continue;
+
+                    if (groupIndex > 0) {
+                        html += `<div class="over-separator"></div>`;
+                    }
+
+                    html += `<div class="over-group">`;
+                    html += `<div class="over-header">`;
+                    if (group.isCompleted && group.header) {
+                        html += `${group.bowler ? group.bowler + ' &bull; ' : ''}${group.header}`;
+                    }
+                    html += `</div>`;
+                    
+                    html += `<div class="balls-row">`;
+                    for (let ball of group.balls) {
+                        html += `<div class="ball-bubble ${ball.cls}" title="${ball.fullText}">${ball.label}</div>`;
+                    }
+                    html += `</div>`;
+                    html += `</div>`;
+                    groupIndex++;
+                }
+                lastBallsBar.innerHTML = html;
+                lastBallsBar.style.display = 'flex';
+            } else {
+                lastBallsBar.style.display = 'none';
+            }
         }
 
         function showStatus(message, type) {
