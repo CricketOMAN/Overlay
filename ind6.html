@@ -872,7 +872,13 @@
             let oversData = [];
             let currentOverGroup = { isCompleted: false, header: "", bowler: "", balls: [] };
             
-            let allRows = doc.querySelectorAll('.bbb-row, .end-over');
+            // Try to find only active tab's ball elements first to avoid grabbing the previous innings
+            let allRows = doc.querySelectorAll('div[id^="ballByBallTeam"].active .bbb-row, div[id^="ballByBallTeam"].active .end-over');
+            
+            // Fallback for different HTML structures
+            if (!allRows || allRows.length === 0) {
+                allRows = doc.querySelectorAll('.bbb-row, .end-over');
+            }
 
             for (let row of allRows) {
                 if (ballCount >= 12) break;
